@@ -89,6 +89,18 @@ async function loadInsights() {
   const d = await getJSON(`/api/insights?days=${state.days}`);
   const labels = d.dates.map(shortDate);
 
+  const noteId = "metrics-note";
+  document.getElementById(noteId)?.remove();
+  if (d.unavailable && d.unavailable.length) {
+    const note = document.createElement("p");
+    note.id = noteId;
+    note.style.cssText = "color:var(--muted);font-size:12px;margin:0 0 12px";
+    note.textContent =
+      "Not provided by the Facebook API for this page/API version: " +
+      d.unavailable.join(", ").replaceAll("_", " ") + ".";
+    document.querySelector("main").prepend(note);
+  }
+
   document.getElementById("kpi-engagement").textContent = fmt(sum(d.engagements));
   document.getElementById("kpi-reach").textContent = fmt(sum(d.reach));
   document.getElementById("kpi-newfans").textContent = fmt(sum(d.fan_adds));

@@ -33,8 +33,16 @@ class FacebookClient:
     def _get(self, path, **params):
         params["access_token"] = self.token
         url = f"{GRAPH_URL}/{self.api_version}/{path}"
-        resp = requests.get(url, params=params, timeout=30)
-        data = resp.json()
+        try:
+            resp = requests.get(url, params=params, timeout=30)
+            data = resp.json()
+        except requests.RequestException as e:
+            # Don't include exception details — request URLs contain the token.
+            raise FacebookClientError(
+                f"Could not reach the Graph API ({type(e).__name__})."
+            ) from None
+        except ValueError:
+            raise FacebookClientError("The Graph API returned a non-JSON response.") from None
         if "error" in data:
             raise FacebookClientError(data["error"].get("message", "Graph API error"))
         return data
@@ -76,29 +84,78 @@ class FacebookClient:
             return _demo_insights(days)
         since = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%d")
         until = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        metrics = (
-            "page_impressions,page_impressions_unique,"
-            "page_post_engagements,page_fan_adds,page_video_views"
-        )
-        d = self._get(
-            f"{self.page_id}/insights",
-            metric=metrics, period="day", since=since, until=until,
-        )
-        series = {}
+
+        # Meta has deprecated many Page insights metrics over time, and one
+        # invalid name fails an entire batched request with error #100.
+        # Fetch each slot independently, trying candidate metric names in
+        # order and skipping slots the current API version no longer supports.
+        candidates = {
+            "impressions": ["page_impressions", "page_views_total"],
+            "reach": ["page_impressions_unique", "page_daily_unique_reach"],
+            "engagements": ["page_post_engagements", "page_total_actions"],
+            "fan_adds": ["page_follows", "page_fan_adds", "page_daily_follows"],
+            "video_views": ["page_video_views"],
+        }
         dates = []
-        for m in d.get("data", []):
-            values = m.get("values", [])
-            key = m["name"]
-            series[key] = [v.get("value", 0) for v in values]
-            if not dates:
-                dates = [v.get("end_time", "")[:10] for v in values]
+        series = {}
+        unavailable = []
+        for slot, names in candidates.items():
+            series[slot] = []
+            for name in names:
+                try:
+                    d = self._get(
+                        f"{self.page_id}/insights",
+                        metric=name, period="day", since=since, until=until,
+                    )
+                except FacebookClientError:
+                    continue
+                data = d.get("data", [])
+                if not data:
+                    continue
+                values = data[0].get("values", [])
+                series[slot] = [
+                    v["value"] if isinstance(v.get("value"), (int, float)) else 0
+                    for v in values
+                ]
+                if len(series[slot]) > len(dates):
+                    dates = [v.get("end_time", "")[:10] for v in values]
+                break
+            if not series[slot]:
+                unavailable.append(slot)
+
+        # If no insights metric worked at all, build a minimal series from
+        # recent posts so the dashboard still shows engagement over time.
+        if not dates:
+            dates = [
+                (datetime.now(timezone.utc) - timedelta(days=i)).strftime("%Y-%m-%d")
+                for i in range(days, 0, -1)
+            ]
+            try:
+                per_day = {day: 0 for day in dates}
+                for p in self.posts(limit=50)["posts"]:
+                    day = p["created_time"][:10]
+                    if day in per_day:
+                        per_day[day] += p["total_engagement"]
+                series["engagements"] = [per_day[day] for day in dates]
+                if "engagements" in unavailable:
+                    unavailable.remove("engagements")
+            except FacebookClientError:
+                pass
+
+        # Pad short/missing slots with zeros so all series align with dates.
+        n = len(dates)
+        for slot in candidates:
+            s = series[slot]
+            series[slot] = ([0] * (n - len(s)) + s)[:n] if s else [0] * n
+
         return {
             "dates": dates,
-            "impressions": series.get("page_impressions", []),
-            "reach": series.get("page_impressions_unique", []),
-            "engagements": series.get("page_post_engagements", []),
-            "fan_adds": series.get("page_fan_adds", []),
-            "video_views": series.get("page_video_views", []),
+            "impressions": series["impressions"],
+            "reach": series["reach"],
+            "engagements": series["engagements"],
+            "fan_adds": series["fan_adds"],
+            "video_views": series["video_views"],
+            "unavailable": unavailable,
             "demo": False,
         }
 
