@@ -15,6 +15,7 @@ engage most with your page.
 - **Reaction breakdown** — Like / Love / Haha / Wow / Sad / Angry across recent posts
 - **Top posts table** — recent posts ranked by total engagement (reactions + comments + shares)
 - **Top engaged users** — commenters and reactors across recent posts, ranked by an engagement score
+- **Settings page** — configure your Page ID, access token, API version, and demo mode from the browser (`/settings`), with a "Test connection" check before saving
 - **Date-range filter** — 7 / 28 / 90 days
 - **Light & dark mode** — follows the OS theme automatically
 - **Demo mode** — runs with realistic sample data when no credentials are configured, so you can try the dashboard immediately
@@ -39,7 +40,9 @@ on built-in sample data (a "Demo data" badge is shown).
    - `pages_show_list`
 3. (Recommended) Exchange it for a long-lived token via the
    [Access Token Debugger](https://developers.facebook.com/tools/debug/accesstoken/).
-4. Configure the app:
+4. Configure the app — either from the browser at **http://localhost:5000/settings**
+   (paste your Page ID and token, click *Test connection*, then *Save settings*),
+   or by hand:
 
 ```bash
 cp .env.example .env
@@ -49,6 +52,12 @@ cp .env.example .env
 python app.py
 ```
 
+Settings saved from the browser are written to the same server-side `.env`
+file (mode `600`, git-ignored) and take effect immediately without a restart.
+The saved token is never sent back to the browser — only a masked preview.
+If you deploy the dashboard publicly, put it behind authentication; the
+settings page itself is not password-protected.
+
 ## API endpoints
 
 | Endpoint | Description |
@@ -57,6 +66,8 @@ python app.py
 | `GET /api/insights?days=28` | Daily impressions, reach, engagements, new likes, video views (7–90 days) |
 | `GET /api/posts?limit=20` | Recent posts with reactions, comments, shares, and reaction breakdown |
 | `GET /api/engaged-users?limit=15` | Users who engaged with recent posts, ranked by score (2×comments + reactions) |
+| `GET/POST /api/settings` | Read (token masked) or save Facebook credentials and demo mode |
+| `POST /api/settings/test` | Verify credentials against the Graph API without saving |
 
 ## Notes & limitations
 

@@ -176,3 +176,50 @@ footer { text-align: center; color: var(--muted); padding: 16px; font-size: 12px
   background: #d03b3b; color: #fff;
   padding: 10px 16px; border-radius: 8px; margin-bottom: 16px;
 }
+
+/* ---------- Settings page ---------- */
+.settings-main { max-width: 720px; margin: 0 auto; padding: 24px 16px 48px; }
+.settings-card { margin-bottom: 16px; }
+.settings-card label { display: block; margin: 16px 0 6px; font-weight: 600; }
+.settings-card input[type="text"],
+.settings-card input[type="password"] {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--page);
+  color: var(--text-primary);
+  font: inherit;
+}
+.settings-card input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.token-row { display: flex; gap: 8px; }
+.token-row input { flex: 1; }
+.check-row { display: flex; align-items: center; gap: 10px; margin-top: 18px; font-weight: 400 !important; }
+.check-row input { width: 16px; height: 16px; accent-color: var(--accent); }
+.hint { color: var(--text-secondary); font-size: 12px; margin: 6px 0 0; line-height: 1.5; }
+.hint a { color: var(--accent); }
+.hint code, .notes code {
+  background: var(--page);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 12px;
+}
+.actions { display: flex; gap: 10px; margin-top: 22px; }
+.btn-primary, .btn-secondary {
+  font: inherit;
+  padding: 9px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+}
+.btn-primary { background: var(--accent); color: #fff; border-color: transparent; font-weight: 600; }
+.btn-primary:disabled, .btn-secondary:disabled { opacity: 0.6; cursor: default; }
+.btn-secondary { background: transparent; color: var(--text-primary); }
+.btn-secondary:hover { background: var(--page); }
+.btn-link { color: var(--text-secondary); text-decoration: none; font-size: 13px; }
+.btn-link:hover { color: var(--text-primary); }
+.notes { margin: 0; padding-left: 18px; color: var(--text-secondary); line-height: 1.7; }
+.banner { padding: 10px 16px; border-radius: 8px; margin-bottom: 16px; }
+.banner-ok { background: #0ca30c; color: #fff; }
+.banner-err { background: #d03b3b; color: #fff; }

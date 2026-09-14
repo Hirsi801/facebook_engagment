@@ -1,19 +1,103 @@
 """Facebook Page Engagement Dashboard — Flask app."""
 
+import re
+
 from dotenv import load_dotenv
 load_dotenv()
 
 from flask import Flask, jsonify, render_template, request
 
 from facebook_client import FacebookClient, FacebookClientError
+from settings_store import read_settings, save_settings
 
 app = Flask(__name__)
 client = FacebookClient()
 
 
+def _rebuild_client():
+    global client
+    client = FacebookClient()
+
+
 @app.route("/")
 def index():
     return render_template("index.html")
+
+
+@app.route("/settings")
+def settings_page():
+    return render_template("settings.html")
+
+
+def _masked(token):
+    if not token:
+        return ""
+    if len(token) <= 8:
+        return "*" * len(token)
+    return token[:4] + "*" * 12 + token[-4:]
+
+
+@app.route("/api/settings", methods=["GET"])
+def api_get_settings():
+    s = read_settings()
+    return jsonify({
+        "page_id": s["FB_PAGE_ID"],
+        "token_masked": _masked(s["FB_PAGE_ACCESS_TOKEN"]),
+        "has_token": bool(s["FB_PAGE_ACCESS_TOKEN"]),
+        "api_version": s["FB_API_VERSION"],
+        "demo_mode": s["DEMO_MODE"].lower() == "true",
+        "effective_demo": client.demo,
+    })
+
+
+@app.route("/api/settings", methods=["POST"])
+def api_save_settings():
+    data = request.get_json(silent=True) or {}
+    updates = {}
+    if "page_id" in data:
+        updates["FB_PAGE_ID"] = str(data["page_id"]).strip()
+    # Empty token field means "keep the existing token"
+    token = str(data.get("access_token", "")).strip()
+    if token:
+        updates["FB_PAGE_ACCESS_TOKEN"] = token
+    if data.get("clear_token"):
+        updates["FB_PAGE_ACCESS_TOKEN"] = ""
+    if "api_version" in data:
+        v = str(data["api_version"]).strip()
+        if v and not re.match(r"^v\d+\.\d+$", v):
+            return jsonify({"error": "API version must look like v21.0"}), 400
+        updates["FB_API_VERSION"] = v or "v21.0"
+    if "demo_mode" in data:
+        updates["DEMO_MODE"] = "true" if data["demo_mode"] else "false"
+    save_settings(updates)
+    _rebuild_client()
+    return jsonify({"ok": True, "effective_demo": client.demo})
+
+
+@app.route("/api/settings/test", methods=["POST"])
+def api_test_settings():
+    """Verify credentials against the Graph API without saving them."""
+    data = request.get_json(silent=True) or {}
+    s = read_settings()
+    page_id = str(data.get("page_id", "")).strip() or s["FB_PAGE_ID"]
+    token = str(data.get("access_token", "")).strip() or s["FB_PAGE_ACCESS_TOKEN"]
+    api_version = str(data.get("api_version", "")).strip() or s["FB_API_VERSION"]
+    if not page_id or not token:
+        return jsonify({"ok": False, "error": "Page ID and access token are required."}), 400
+    try:
+        import requests as _rq
+        resp = _rq.get(
+            f"https://graph.facebook.com/{api_version}/{page_id}",
+            params={"fields": "id,name,fan_count", "access_token": token},
+            timeout=15,
+        )
+        d = resp.json()
+        if "error" in d:
+            return jsonify({"ok": False, "error": d["error"].get("message", "Graph API error")})
+        return jsonify({"ok": True, "page_name": d.get("name"), "fan_count": d.get("fan_count")})
+    except Exception as e:
+        # Don't echo exception details — request URLs inside them contain the token.
+        return jsonify({"ok": False, "error": f"Could not reach the Graph API ({type(e).__name__}). Check your network connection."})
 
 
 @app.route("/api/overview")
