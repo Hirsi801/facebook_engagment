@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Facebook Page Engagement Dashboard</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<script src="{{ url_for('static', filename='js/vendor/chart.umd.min.js') }}"></script>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-logo">f</div>
+    <div>
+      <h1 id="page-name">Loading…</h1>
+      <p id="page-category" class="subtitle"></p>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <span id="demo-badge" class="badge" hidden>Demo data</span>
+    <div class="range-picker" role="group" aria-label="Date range">
+      <button data-days="7">7d</button>
+      <button data-days="28" class="active">28d</button>
+      <button data-days="90">90d</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- KPI tiles -->
+  <section class="kpi-grid" id="kpi-grid">
+    <div class="kpi"><span class="kpi-label">Page likes</span><span class="kpi-value" id="kpi-fans">–</span></div>
+    <div class="kpi"><span class="kpi-label">Followers</span><span class="kpi-value" id="kpi-followers">–</span></div>
+    <div class="kpi"><span class="kpi-label">Talking about this</span><span class="kpi-value" id="kpi-talking">–</span></div>
+    <div class="kpi"><span class="kpi-label">Total engagement <small>(period)</small></span><span class="kpi-value" id="kpi-engagement">–</span></div>
+    <div class="kpi"><span class="kpi-label">Reach <small>(period)</small></span><span class="kpi-value" id="kpi-reach">–</span></div>
+    <div class="kpi"><span class="kpi-label">New page likes <small>(period)</small></span><span class="kpi-value" id="kpi-newfans">–</span></div>
+  </section>
+
+  <!-- Charts row 1 -->
+  <section class="grid-2">
+    <div class="card">
+      <h2>Reach &amp; impressions</h2>
+      <div class="chart-wrap"><canvas id="chart-reach"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>Daily engagement</h2>
+      <div class="chart-wrap"><canvas id="chart-engagement"></canvas></div>
+    </div>
+  </section>
+
+  <!-- Charts row 2 -->
+  <section class="grid-2">
+    <div class="card">
+      <h2>New page likes per day</h2>
+      <div class="chart-wrap"><canvas id="chart-fans"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>Reaction breakdown <small>(recent posts)</small></h2>
+      <div class="chart-wrap"><canvas id="chart-reactions"></canvas></div>
+    </div>
+  </section>
+
+  <!-- Posts + engaged users -->
+  <section class="grid-2 grid-2-uneven">
+    <div class="card">
+      <h2>Recent posts by engagement</h2>
+      <div class="table-scroll">
+        <table id="posts-table">
+          <thead>
+            <tr><th>Post</th><th>Date</th><th>👍 Reactions</th><th>💬 Comments</th><th>↗ Shares</th><th>Total</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Top engaged users</h2>
+      <ol id="engaged-users" class="user-list"></ol>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <p>Facebook Page Engagement Dashboard · data via the Facebook Graph API</p>
+</footer>
+
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html>
