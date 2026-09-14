@@ -84,20 +84,52 @@ def api_test_settings():
     api_version = str(data.get("api_version", "")).strip() or s["FB_API_VERSION"]
     if not page_id or not token:
         return jsonify({"ok": False, "error": "Page ID and access token are required."}), 400
-    try:
-        import requests as _rq
-        resp = _rq.get(
-            f"https://graph.facebook.com/{api_version}/{page_id}",
-            params={"fields": "id,name,fan_count", "access_token": token},
-            timeout=15,
-        )
-        d = resp.json()
+
+    import requests as _rq
+
+    def graph(path, **params):
+        params["access_token"] = token
+        r = _rq.get(f"https://graph.facebook.com/{api_version}/{path}", params=params, timeout=15)
+        d = r.json()
         if "error" in d:
-            return jsonify({"ok": False, "error": d["error"].get("message", "Graph API error")})
-        return jsonify({"ok": True, "page_name": d.get("name"), "fan_count": d.get("fan_count")})
+            raise FacebookClientError(d["error"].get("message", "Graph API error"))
+        return d
+
+    checks = {}
+    page_name = None
+    try:
+        # Whose token is this? A Page token identifies as the page itself;
+        # a User token identifies as a person and can't read insights/posts.
+        me = graph("me", fields="id,name")
+        if me.get("id") != page_id:
+            checks["token_type"] = (
+                f'This is a token for "{me.get("name")}" (id {me.get("id")}), not a Page '
+                f"token for page {page_id}. In the Graph API Explorer, query me/accounts "
+                "and use the access_token listed for your page."
+            )
+        d = graph(page_id, fields="id,name,fan_count")
+        page_name = d.get("name")
+        checks["profile"] = "ok"
+    except FacebookClientError as e:
+        return jsonify({"ok": False, "error": str(e), "checks": checks})
     except Exception as e:
         # Don't echo exception details — request URLs inside them contain the token.
         return jsonify({"ok": False, "error": f"Could not reach the Graph API ({type(e).__name__}). Check your network connection."})
+
+    for name, path, params in (
+        ("posts", f"{page_id}/posts", {"fields": "id", "limit": 1}),
+        ("insights", f"{page_id}/insights", {"metric": "page_impressions", "period": "day"}),
+    ):
+        try:
+            graph(path, **params)
+            checks[name] = "ok"
+        except FacebookClientError as e:
+            checks[name] = str(e)
+        except Exception:
+            checks[name] = "unreachable"
+
+    ok = all(v == "ok" for v in checks.values())
+    return jsonify({"ok": ok, "page_name": page_name, "checks": checks})
 
 
 @app.route("/api/overview")

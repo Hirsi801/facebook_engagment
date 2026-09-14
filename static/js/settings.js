@@ -58,7 +58,17 @@ document.getElementById("test-btn").addEventListener("click", async (ev) => {
       }),
     });
     if (d.ok) {
-      show("ok", `Connection successful — page "${d.page_name}" (${(d.fan_count ?? 0).toLocaleString()} likes).`);
+      show("ok", `Connection successful — page "${d.page_name}". Profile, posts, and insights are all readable.`);
+    } else if (d.checks) {
+      const lines = [];
+      if (d.error) lines.push(d.error);
+      if (d.page_name) lines.push(`Page profile: ok ("${d.page_name}")`);
+      for (const [check, result] of Object.entries(d.checks)) {
+        if (check === "profile") continue;
+        lines.push(result === "ok" ? `${check}: ok` : `${check}: ${result}`);
+      }
+      show("err", lines.join("\n"));
+      banner.style.whiteSpace = "pre-line";
     } else {
       show("err", d.error);
     }

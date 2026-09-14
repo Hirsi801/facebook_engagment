@@ -107,7 +107,13 @@ class FacebookClient:
                         f"{self.page_id}/insights",
                         metric=name, period="day", since=since, until=until,
                     )
-                except FacebookClientError:
+                except FacebookClientError as e:
+                    # A deprecated metric name should be skipped, but an auth
+                    # or permission problem affects every call — surface it
+                    # instead of mislabeling it "metric not available".
+                    msg = str(e)
+                    if any(s in msg for s in ("OAuth", "Access Token", "(#190", "(#200", "permission")):
+                        raise
                     continue
                 data = d.get("data", [])
                 if not data:
